@@ -1,0 +1,268 @@
+{
+  "name": "AI weekly tech news",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "57dd4a8d-922f-448d-9c3d-8808c0ff3ec6",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        -16
+      ],
+      "id": "cb27ef6f-e46d-461a-a214-682203490a94",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/news/rss.xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "be315806-56d0-47f7-be05-bd620f8e5710",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "url": "https://www.technologyreview.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        128
+      ],
+      "id": "1bb063fd-06d1-428d-8b62-ab029a028c2e",
+      "name": "RSS Read1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst now = Date.now();\nconst sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;\nconst seen = new Set();\n\nconst articles = items\n  .map(item => item.json)\n  .filter(itemData => {\n    const title = itemData.title;\n    const url = itemData.link || itemData.url;\n\n    const date =\n      itemData.isoDate ||\n      itemData.pubDate ||\n      itemData.published ||\n      itemData.date;\n\n    if (\n      typeof title !== \"string\" ||\n      typeof url !== \"string\" ||\n      !date\n    ) {\n      return false;\n    }\n\n    const publishedAt = new Date(date).getTime();\n\n    if (\n      !Number.isFinite(publishedAt) ||\n      publishedAt > now ||\n      publishedAt < sevenDaysAgo\n    ) {\n      return false;\n    }\n\n    const key = url.trim().replace(/\\/$/, \"\").toLowerCase();\n\n    if (seen.has(key)) {\n      return false;\n    }\n\n    seen.add(key);\n    return true;\n  })\n  .sort((a, b) => {\n    const dateA = new Date(\n      a.isoDate || a.pubDate || a.published || a.date\n    ).getTime();\n\n    const dateB = new Date(\n      b.isoDate || b.pubDate || b.published || b.date\n    ).getTime();\n\n    return dateB - dateA;\n  })\n  .slice(0, 10);\n\nreturn articles.map(itemData => {\n  return {\n    json: {\n      title: itemData.title,\n      url: itemData.link || itemData.url,\n      publishedAt:\n        itemData.isoDate ||\n        itemData.pubDate ||\n        itemData.published ||\n        itemData.date,\n      content:\n        itemData.contentSnippet ||\n        itemData.description ||\n        itemData.content ||\n        \"\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -16
+      ],
+      "id": "a52edeea-0ca6-4456-a3d6-164dfc233413",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert technology news analyst.\n\nYour task is to select the single most valuable article from the news articles provided below.\n\nNEWS ARTICLES:\n{{ JSON.stringify($input.all().map(item => item.json)) }}\n\nSelection criteria:\n- Prioritize AI, AI agents, large language models, and business automation.\n- Prefer news with practical business impact or significant technical developments.\n- Choose articles that would be valuable to AI engineers and technology professionals on LinkedIn.\n- Avoid duplicate stories, minor updates, and articles with insufficient information.\n- Use only the information provided. Do not invent facts.\n- Select exactly one article.\n\nReturn only one valid JSON object with these fields:\n{\n  \"selected_title\": \"Exact article title\",\n  \"selected_url\": \"Original article URL\",\n  \"published_at\": \"Publication date if available\",\n  \"selection_reason\": \"Brief reason for selecting this article\",\n  \"linkedin_angle\": \"One useful professional discussion angle\"\n}\n\nIf a field is unavailable, return an empty string for that field.\nDo not include Markdown fences or additional commentary.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1472,
+        -16
+      ],
+      "id": "50c1bffe-d163-42f5-a64d-b37765ae0758",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "gemma3:4b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        192
+      ],
+      "id": "f2383e77-46d2-4d38-b68a-19878ba9889c",
+      "name": "Ollama Chat Model"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert LinkedIn content strategist specializing in artificial intelligence, AI agents, business automation, and emerging technology.\n\nYour task is to transform the selected news article provided by the previous AI Agent into an engaging, insightful, and professional LinkedIn post.\n\nSELECTED NEWS:\n{{ JSON.stringify($input.all().map(item => item.json)) }}\n\nINSTRUCTIONS:\n\n1. Write in natural, professional English.\n2. Start with a compelling hook that makes professionals want to continue reading.\n3. Explain the news clearly and accurately.\n4. Focus on why this development matters for businesses, AI engineers, and technology professionals.\n5. Add your own practical analysis based on the available facts.\n6. Include one thoughtful question at the end to encourage meaningful discussion.\n7. Include the original article URL as a source at the end.\n8. Use short paragraphs and make the post easy to read on mobile.\n9. Use 3 to 5 relevant hashtags.\n10. Avoid generic hype, exaggerated claims, clickbait, and unsupported predictions.\n11. Do not invent facts or claim personal experience.\n12. Do not mention that you are an AI.\n13. Do not copy the article word for word.\n\nOUTPUT FORMAT:\n\nReturn only the finished LinkedIn post, ready to publish.\n\nDo not include a title such as \"LinkedIn Post\", explanations, or notes outside the post itself.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1840,
+        -16
+      ],
+      "id": "6a18fd82-3952-4002-bbdc-bf356781ae5e",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "gemma3:4b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        192
+      ],
+      "id": "c64a4114-8ea9-4c4b-a605-2d57ab51fc36",
+      "name": "Ollama Chat Model1"
+    },
+    {
+      "parameters": {
+        "person": "RESELECT_YOUR_LINKEDIN_PROFILE_AFTER_IMPORT",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        -16
+      ],
+      "id": "e4d351d9-22ef-4be2-b5f4-fe0d85e43be6",
+      "name": "Create a post"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "RSS Read1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
