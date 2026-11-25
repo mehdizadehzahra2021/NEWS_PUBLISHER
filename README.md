@@ -6,7 +6,7 @@ An AI-powered news curation and LinkedIn publishing workflow built with n8n and 
 AI News Publisher automates the process of collecting technology news from multiple sources, identifying relevant topics, generating LinkedIn-ready content, and publishing posts.
 The workflow combines AI-powered content processing with workflow automation to streamline professional content creation and publishing.
 ##workflow preview
-![AI News Publisher Workflow](images/workflow.png)
+![AI News Publisher Workflow](workflow.png)
 
 -Features
 Automated technology news collection from multiple sources
